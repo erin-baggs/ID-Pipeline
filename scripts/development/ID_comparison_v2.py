@@ -44,6 +44,7 @@ with open(sys.argv[2]) as fi2:
             for domain in row[1].split('~'):
                 name, coord = domain.split('(')
                 if name in id_names:
+                    domains.append({'name': name})
                     for item in coord.split(', ')[:-1]:
                         #['start=162' 'stop=447']
                         key, value = item.split('=')
