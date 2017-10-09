@@ -3,7 +3,7 @@ from __future__ import print_function
 import sys
 import csv
 import re
-
+from blast import *
 from ktoolu_io import readFasta
 
 
@@ -84,7 +84,8 @@ with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
     for _id, _seq in readFasta(sys.argv[3], headless=True):
        # print(_id)
         _id = _id.split()[0]
-        if _id in domain_info and ".".join(_id.split('.')[:-1]) in seen_id : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
+        gid = ".".join(_id.split('.')[:-1])
+        if _id in domain_info and gid in seen_id and seen_id[gid][0] == _id : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
             print(_id)
             #Here I could filter for 1 per primary transcript 
             for domain in domain_info[_id]:
@@ -101,8 +102,19 @@ with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
             else : 
                 dseq = _seq[ 0 : len(_seq) ]
             print(did + '\n' + dseq , file = out )
-                
-            #info=row[1-].split(~)
-            #domain,length=info.split('(')                    
 
-         
+blast_seen=set()
+with open('raw.blast', 'w') as blast_out, open('filtered.blast', 'w') as blast_filtered:
+
+    stdout, stderr = makeBlastdb('db.fa')
+    if not stderr :
+        print ('working')
+        for HSP in runBlast('query.fa', BLAST_CMD, 'db.fa', 'blastp', nthreads=1): #default nthreads = 8  
+            print(*HSP, sep = '\t', file = blast_out)
+            if HSP.query not in blast_seen:
+            #if float(HSP.evalue) < 1e-19:
+                blast_seen.add(HSP.query)
+                print(*HSP, sep = '\t', file = blast_filtered)
+    else: 
+        print(stderr)         
+
