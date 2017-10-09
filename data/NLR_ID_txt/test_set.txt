@@ -1,0 +1,2 @@
+AT5G47260.1	Vps5(start=15, stop=49, evalue=0.086)~NB-ARC(start=156, stop=431, evalue=9.2e-69)~LRR_8(start=520, stop=578, evalue=8.9e-07)~AIG1(start=883, stop=940, evalue=2.9e-10)
+AT4G19500.1	TIR(start=13, stop=142, evalue=9.2e-38)~NB-ARC(start=187, stop=418, evalue=1.9e-22)~DUF640(start=527, stop=572, evalue=4.6e-13)~TIR(start=581, stop=707, evalue=7.3e-18)~NB-ARC(start=755, stop=1004, evalue=7.6e-28)~LRR_3(start=1146, stop=1165, evalue=2e-09)~LRR_4(start=1216, stop=1257, evalue=0.044)~LRR_4(start=1259, stop=1301, evalue=6.6e-08)

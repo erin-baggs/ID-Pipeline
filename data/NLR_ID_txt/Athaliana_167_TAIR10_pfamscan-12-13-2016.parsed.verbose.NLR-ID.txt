@@ -1,0 +1,1 @@
+../../../erinphd/analysis/Pfam/Pfam_30.0/Athaliana_TAIR10/Athaliana_167_TAIR10_pfamscan-12-13-2016.parsed.verbose.NLR-ID.txt
