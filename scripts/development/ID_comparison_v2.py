@@ -52,23 +52,44 @@ with open(sys.argv[2]) as fi2:
             if domains:
                 domain_info[row[0]] = domains
 
-for _id, _seq in readFasta(sys.argv[3]):            
-   # print(_id)    
+
+seen_id={}
+for _id, _seq in readFasta(sys.argv[3], headless=True):            
+    # print(_id)    
     _id=_id.split()[0]
-    if _id[1:] in domain_info : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
-            #print(_id)
+    #counter=0
+    gid ='initial'
+    pid = 'initial'
+    # bait_data['intial']=['intial',0]
+    #print (_id)
+    if _id in domain_info : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
+        #Here I could filter for 1 per primary transcript
+        for domain in domain_info[_id]:
+            gid = ".".join(_id.split('.')[:-1])
+            if gid not in seen_id:
+                seen_id[gid] = [_id, len(_seq)]
+            elif len(_seq) > seen_id[gid][1]:
+                seen_id[gid] = [_id, len(_seq)]
+#print (seen_id)
+#print (domain_info)
+    
+for _id, _seq in readFasta(sys.argv[3], headless=True):
+    #print(_id)
+    _id = _id.split()[0]
+    if _id in domain_info and ".".join(_id.split('.')[:-1]) in seen_id : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
+        #print(_id)
             #Here I could filter for 1 per primary transcript 
-            for domain in domain_info[_id[1:]]: 
-                did = '>{}_{}_{}-{}'.format(_id[1:], domain['name'], domain['start'], domain['stop'])
-                if domain['start'] - 20 > 0 and domain['stop'] + 20 < len(_seq): 
-                    dseq = _seq[domain['start'] - 10: domain['stop'] + 10]
-                if domain['start'] < 0 and domain['stop'] + 10 < len(_seq):
-                    dseq = _seq[ 0 : domain['stop'] + 10]
-                if domain['start'] > 0 and domain['stop'] + 10 > len(_seq):
-                    dseq = _seq[ domain['start'] : len(_seq)]
-                else : 
-                    dseq = _seq[ 0 : len(_seq) ]
-                print(did + '\n' + dseq )
+        for domain in domain_info[_id]: 
+            did = '>{}_{}_{}-{}'.format(_id, domain['name'], domain['start'], domain['stop'])
+        if domain['start'] - 20 > 0 and domain['stop'] + 20 < len(_seq): 
+            dseq = _seq[domain['start'] - 10: domain['stop'] + 10]
+        if domain['start'] < 0 and domain['stop'] + 10 < len(_seq):
+            dseq = _seq[ 0 : domain['stop'] + 10] 
+        if domain['start'] > 0 and domain['stop'] + 10 > len(_seq):
+            dseq = _seq[ domain['start'] : len(_seq)]
+        else : 
+            dseq = _seq[ 0 : len(_seq) ]
+        print(did + '\n' + dseq )
                 
             #info=row[1-].split(~)
             #domain,length=info.split('(')                    
