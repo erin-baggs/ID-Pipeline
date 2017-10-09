@@ -11,6 +11,7 @@ from ktoolu_io import readFasta
 gid_nlrid = list()
 id_names = list()
 domain_info = dict()
+nlrids = list()
 valid_domains = {'NB-ARC','LRR','NB-LRR','TIR','RPW8','DUF3542'} #Add other DUFs I have charachterised  #Python 3 {, ,} comma sep = set and {:} colon separated = dict 
 with open(sys.argv[1]) as fi:
     for row in csv.reader(fi, delimiter='\t'): #changed from stdin to sys.argv
@@ -33,6 +34,7 @@ with open(sys.argv[1]) as fi:
                         domains[-1][key] = int(value)
             if domains:
                 domain_info[row[0]] = domains
+                nlrids.append(row[0])
 
 #Need to keep list of IDs' with NLR-IDs
 #Now have list of domains - need to extract all proteins with these domains from parsed.verbose
@@ -45,10 +47,14 @@ with open(sys.argv[2]) as fi2:
                 name, coord = domain.split('(')
                 if name in id_names:
                     domains.append({'name': name})
-                    for item in coord.split(', ')[:-1]:
+                    #coord              start=162, stop=447, evalue=3.4e-75)
+                    for item in coord.split(', '):
                         #['start=162' 'stop=447']
-                        key, value = item.split('=')
-                        domains[-1][key] = int(value)
+                        key, value = item.strip(')').split('=')
+                        cast = float if key == 'evalue' else int 
+                        domains[-1][key] = cast(value)
+                    if domains[-1]['evalue'] > 0.001 : #Filter proteome annotations to be >0.001
+                        del domains[-1]
             if domains:
                 domain_info[row[0]] = domains
 
@@ -79,8 +85,11 @@ for _id, _seq in readFasta(sys.argv[3], headless=True):
     if _id in domain_info and ".".join(_id.split('.')[:-1]) in seen_id : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
         #print(_id)
             #Here I could filter for 1 per primary transcript 
-        for domain in domain_info[_id]: 
-            did = '>{}_{}_{}-{}'.format(_id, domain['name'], domain['start'], domain['stop'])
+        for domain in domain_info[_id]:
+            isID= "_DOMAIN"
+            if _id in nlrids:
+                isID = "_NLR-ID"
+            did = '>{}_{}_{}-{}{}'.format(_id, domain['name'], domain['start'], domain['stop'], isID)
         if domain['start'] - 20 > 0 and domain['stop'] + 20 < len(_seq): 
             dseq = _seq[domain['start'] - 10: domain['stop'] + 10]
         if domain['start'] < 0 and domain['stop'] + 10 < len(_seq):
