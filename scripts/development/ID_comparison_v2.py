@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import sys
 import csv
 import re
@@ -78,27 +79,28 @@ for _id, _seq in readFasta(sys.argv[3], headless=True):
                 seen_id[gid] = [_id, len(_seq)]
 #print (seen_id)
 #print (domain_info)
-    
-for _id, _seq in readFasta(sys.argv[3], headless=True):
-    #print(_id)
-    _id = _id.split()[0]
-    if _id in domain_info and ".".join(_id.split('.')[:-1]) in seen_id : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
-        #print(_id)
+with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
+
+    for _id, _seq in readFasta(sys.argv[3], headless=True):
+       # print(_id)
+        _id = _id.split()[0]
+        if _id in domain_info and ".".join(_id.split('.')[:-1]) in seen_id : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
+            print(_id)
             #Here I could filter for 1 per primary transcript 
-        for domain in domain_info[_id]:
-            isID= "_DOMAIN"
-            if _id in nlrids:
-                isID = "_NLR-ID"
-            did = '>{}_{}_{}-{}{}'.format(_id, domain['name'], domain['start'], domain['stop'], isID)
-        if domain['start'] - 20 > 0 and domain['stop'] + 20 < len(_seq): 
-            dseq = _seq[domain['start'] - 10: domain['stop'] + 10]
-        if domain['start'] < 0 and domain['stop'] + 10 < len(_seq):
-            dseq = _seq[ 0 : domain['stop'] + 10] 
-        if domain['start'] > 0 and domain['stop'] + 10 > len(_seq):
-            dseq = _seq[ domain['start'] : len(_seq)]
-        else : 
-            dseq = _seq[ 0 : len(_seq) ]
-        print(did + '\n' + dseq )
+            for domain in domain_info[_id]:
+                isID, out = "_DOMAIN", db_out
+                if _id in nlrids:
+                    isID, out = "_NLR-ID", query_out
+                did = '>{}_{}_{}-{}{}'.format(_id, domain['name'], domain['start'], domain['stop'], isID)
+            if domain['start'] - 20 > 0 and domain['stop'] + 20 < len(_seq): 
+                dseq = _seq[domain['start'] - 10: domain['stop'] + 10]
+            if domain['start'] < 0 and domain['stop'] + 10 < len(_seq):
+                dseq = _seq[ 0 : domain['stop'] + 10] 
+            if domain['start'] > 0 and domain['stop'] + 10 > len(_seq):
+                dseq = _seq[ domain['start'] : len(_seq)]
+            else : 
+                dseq = _seq[ 0 : len(_seq) ]
+            print(did + '\n' + dseq , file = out )
                 
             #info=row[1-].split(~)
             #domain,length=info.split('(')                    
