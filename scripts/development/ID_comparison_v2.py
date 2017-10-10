@@ -3,6 +3,7 @@ from __future__ import print_function
 import sys
 import csv
 import re
+import os
 from blast import *
 from ktoolu_io import readFasta
 
@@ -80,28 +81,38 @@ for _id, _seq in readFasta(sys.argv[3], headless=True):
 #print (seen_id)
 #print (domain_info)
 with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
-
+    files = dict()
     for _id, _seq in readFasta(sys.argv[3], headless=True):
-       # print(_id)
+       # print(_id) 
         _id = _id.split()[0]
         gid = ".".join(_id.split('.')[:-1])
         if _id in domain_info and gid in seen_id and seen_id[gid][0] == _id : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
             print(_id)
             #Here I could print the indvidual domain/NLR-ID fasta files  
             for domain in domain_info[_id]:
+                if files.get(domain['name'], None) is None:
+                    files[domain['name']] = open(domain['name'] +'_domain.fa', 'w')
                 isID, out = "_DOMAIN", db_out
                 if _id in nlrids:
                     isID, out = "_NLR-ID", query_out
                 did = '>{}~{}_{}-{}{}'.format(_id, domain['name'], domain['start'], domain['stop'], isID)
-            if domain['start'] - 20 > 0 and domain['stop'] + 20 < len(_seq): 
-                dseq = _seq[domain['start'] - 10: domain['stop'] + 10]
-            if domain['start'] < 0 and domain['stop'] + 10 < len(_seq):
-                dseq = _seq[ 0 : domain['stop'] + 10] 
-            if domain['start'] > 0 and domain['stop'] + 10 > len(_seq):
-                dseq = _seq[ domain['start'] : len(_seq)]
-            else : 
-                dseq = _seq[ 0 : len(_seq) ]
-            print(did + '\n' + dseq , file = out )
+                if domain['start'] - 20 > 0 and domain['stop'] + 20 < len(_seq): 
+                   dseq = _seq[domain['start'] - 10: domain['stop'] + 10]
+                if domain['start'] < 0 and domain['stop'] + 10 < len(_seq):
+                   dseq = _seq[ 0 : domain['stop'] + 10] 
+                if domain['start'] > 0 and domain['stop'] + 10 > len(_seq):
+                   dseq = _seq[ domain['start'] : len(_seq)]
+                else : 
+                   dseq = _seq[ 0 : len(_seq) ]
+                print(did + '\n' + dseq , file = out )
+                print(did + '\n' + dseq , file = files[domain['name']])
+             
+    for k in files:
+        try:
+            files[k].close()
+        except: 
+            pass
+
 
 blast_seen=set()
 filtered_qid_sid=dict()
