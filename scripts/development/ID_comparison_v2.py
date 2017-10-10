@@ -4,6 +4,7 @@ import sys
 import csv
 import re
 import os
+import subprocess 
 from blast import *
 from ktoolu_io import readFasta
 
@@ -91,7 +92,7 @@ with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
             #Here I could print the indvidual domain/NLR-ID fasta files  
             for domain in domain_info[_id]:
                 if files.get(domain['name'], None) is None:
-                    files[domain['name']] = open(domain['name'] +'_domain.fa', 'w')
+                    files[domain['name']] = domain['name'] +'_domain.fa', open(domain['name'] +'_domain.fa', 'w')
                 isID, out = "_DOMAIN", db_out
                 if _id in nlrids:
                     isID, out = "_NLR-ID", query_out
@@ -105,11 +106,11 @@ with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
                 else : 
                    dseq = _seq[ 0 : len(_seq) ]
                 print(did + '\n' + dseq , file = out )
-                print(did + '\n' + dseq , file = files[domain['name']])
+                print(did + '\n' + dseq , file = files[domain['name']][1])
              
     for k in files:
         try:
-            files[k].close()
+            files[k][1].close()
         except: 
             pass
 
@@ -150,4 +151,21 @@ with open(sys.argv[4]) as GFF, open('chromo_cord.gff', 'w') as chromo_coord:
                     print (*(row + [query]), sep = '\t' , file = chromo_coord)
 
  
-#print (GFF_dict)
+"""
+source t_coffee-9.03.r1318
+
+QUERY=$1
+OUT=$2
+
+t_coffee ../../data/*_domain.fa -mode mcoffee -outfile ../../data/AIG_1.mcoffee.fa -output fasta_aln
+"""
+done_files=list()
+TCOFFEE_CMD = 't_coffee {} -mode mcoffee -outfile {} -output fasta_aln; touch {};'
+TCOFFEE_SBATCH = 'sbatch -p {} -c {} --mem {} --wrap "{}" -J EB_Pipe_Tcoffee'
+for domain_fasta in files: 
+    tcoffee_cmd = TCOFFEE_CMD.format(files[domain_fasta][0], files[domain_fasta][0]+'.aln', files[domain_fasta][0]+'tcoffee.done')  
+    sbatch_cmd = TCOFFEE_SBATCH.format('ei-medium', 1, '2GB', tcoffee_cmd)
+    done_files.append(files[domain_fasta][0]+'tcoffee.done')
+    pr = subprocess.Popen(sbatch_cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) 
+    out, err = pr.communicate()
+    print(out, err, sep = '\n')
