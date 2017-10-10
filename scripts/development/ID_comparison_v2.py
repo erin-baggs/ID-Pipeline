@@ -10,10 +10,10 @@ from ktoolu_io import readFasta
 # GSMUA_Achr11P25110_001  NB-ARC(start=162, stop=447, evalue=3.4e-75)~LRR_8(start=549, stop=600, evalue=0.00014)~LRR_4(start=770, stop=802, evalue=0.12)
 #If two domains in same sequence only one Fa sequence 
 gid_nlrid = list()
-id_names = list()
+id_names = set()
 domain_info = dict()
-nlrids = list()
-valid_domains = {'NB-ARC','LRR','NB-LRR','TIR','RPW8','DUF3542'} #Add other DUFs I have charachterised  #Python 3 {, ,} comma sep = set and {:} colon separated = dict 
+nlrids = set()
+valid_domains = {'NB-ARC','LRR','NB-LRR','TIR','RPW8','DUF3542', 'TIR_2', 'DUF640'} #Add other DUFs I have charachterised  #Python 3 {, ,} comma sep = set and {:} colon separated = dict 
 with open(sys.argv[1]) as fi:
     for row in csv.reader(fi, delimiter='\t'): #changed from stdin to sys.argv
         if row:
@@ -26,7 +26,7 @@ with open(sys.argv[1]) as fi:
                 name, coord = domain.split('(')
                 if name not in valid_domains and not (name.startswith('LRR') or  name.startswith('LRV')):
                     domains.append({'name': name})
-                    id_names.append(name)
+                    id_names.add(name)
                     #print (name)
                     #coord 		start=162, stop=447, evalue=3.4e-75)
                     for item in coord.split(', ')[:-1]:
@@ -35,7 +35,7 @@ with open(sys.argv[1]) as fi:
                         domains[-1][key] = int(value)
             if domains:
                 domain_info[row[0]] = domains
-                nlrids.append(row[0])
+                nlrids.add(row[0])
 
 #Need to keep list of IDs' with NLR-IDs
 #Now have list of domains - need to extract all proteins with these domains from parsed.verbose
@@ -87,12 +87,12 @@ with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
         gid = ".".join(_id.split('.')[:-1])
         if _id in domain_info and gid in seen_id and seen_id[gid][0] == _id : #[1:] to remove > from fasta header in readFasta tool. sequences asks if its in dictionary general
             print(_id)
-            #Here I could filter for 1 per primary transcript 
+            #Here I could print the indvidual domain/NLR-ID fasta files  
             for domain in domain_info[_id]:
                 isID, out = "_DOMAIN", db_out
                 if _id in nlrids:
                     isID, out = "_NLR-ID", query_out
-                did = '>{}_{}_{}-{}{}'.format(_id, domain['name'], domain['start'], domain['stop'], isID)
+                did = '>{}~{}_{}-{}{}'.format(_id, domain['name'], domain['start'], domain['stop'], isID)
             if domain['start'] - 20 > 0 and domain['stop'] + 20 < len(_seq): 
                 dseq = _seq[domain['start'] - 10: domain['stop'] + 10]
             if domain['start'] < 0 and domain['stop'] + 10 < len(_seq):
@@ -104,6 +104,7 @@ with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
             print(did + '\n' + dseq , file = out )
 
 blast_seen=set()
+filtered_qid_sid=dict()
 with open('raw.blast', 'w') as blast_out, open('filtered.blast', 'w') as blast_filtered:
 
     stdout, stderr = makeBlastdb('db.fa')
@@ -115,6 +116,27 @@ with open('raw.blast', 'w') as blast_out, open('filtered.blast', 'w') as blast_f
             #if float(HSP.evalue) < 1e-19:
                 blast_seen.add(HSP.query)
                 print(*HSP, sep = '\t', file = blast_filtered)
-    else: 
-        print(stderr)         
+                subject = '.'.join(HSP.subject.split('~')[0].split('.')[:-1])
+                query = '.'.join(HSP.query.split('~')[0].split('.')[:-1])
+                filtered_qid_sid[subject] = filtered_qid_sid.get(subject, list())#new
+                filtered_qid_sid[subject].append(query) 
+    else: #old
+        print(stderr)
 
+print (filtered_qid_sid)
+        
+GFF_dict= {}
+with open(sys.argv[4]) as GFF, open('chromo_cord.gff', 'w') as chromo_coord:
+    for row in csv.reader(GFF, delimiter='\t'): 
+        if row[2] == 'gene':
+            #print (row)
+            #Chr1    TAIR10  gene    3631    5899    .       +       .       ID=AT1G01010;Note=protein_coding_gene;Name=AT1G01010
+            for item in row[8].split(';'):
+                key, value = item.split('=')
+                GFF_dict[key] = str(value)
+            if GFF_dict['ID'] in filtered_qid_sid : #regex as GFF maybe different #Can I cat together GFFs
+                for query in filtered_qid_sid[GFF_dict['ID']]:
+                    print (*(row + [query]), sep = '\t' , file = chromo_coord)
+
+ 
+#print (GFF_dict)
