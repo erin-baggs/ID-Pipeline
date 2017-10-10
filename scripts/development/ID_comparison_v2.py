@@ -5,6 +5,7 @@ import csv
 import re
 import os
 import subprocess 
+import time
 from blast import *
 from ktoolu_io import readFasta
 
@@ -159,13 +160,35 @@ OUT=$2
 
 t_coffee ../../data/*_domain.fa -mode mcoffee -outfile ../../data/AIG_1.mcoffee.fa -output fasta_aln
 """
+start_files=list()
 done_files=list()
-TCOFFEE_CMD = 't_coffee {} -mode mcoffee -outfile {} -output fasta_aln; touch {};'
+TCOFFEE_CMD = 'touch {}; t_coffee {} -mode mcoffee -outfile {} -output fasta_aln; touch {};'
 TCOFFEE_SBATCH = 'sbatch -p {} -c {} --mem {} --wrap "{}" -J EB_Pipe_Tcoffee'
 for domain_fasta in files: 
-    tcoffee_cmd = TCOFFEE_CMD.format(files[domain_fasta][0], files[domain_fasta][0]+'.aln', files[domain_fasta][0]+'tcoffee.done')  
+    tcoffee_cmd = TCOFFEE_CMD.format(files[domain_fasta][0]+'tcoffee.start', files[domain_fasta][0], files[domain_fasta][0]+'.aln', files[domain_fasta][0]+'tcoffee.done')  
     sbatch_cmd = TCOFFEE_SBATCH.format('ei-medium', 1, '2GB', tcoffee_cmd)
     done_files.append(files[domain_fasta][0]+'tcoffee.done')
+    start_files.append(files[domain_fasta][0]+'tcoffee.start')
     pr = subprocess.Popen(sbatch_cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) 
     out, err = pr.communicate()
     print(out, err, sep = '\n')
+
+start_time = time.time()
+unfinished = list(done_files)
+while True:
+    unfinished = [f for f in unfinished if not os.path.exists(f)]
+    if not unfinished or (time.time()-start_time)/60:
+        break
+
+    time.sleep(300) 
+
+
+
+
+
+"""    
+raxml_start_file = list()
+raxml_done_file = list()
+RAXML_CMD = 'touch {}; raxmlHPC-MPI-SSE3 -f a -x 1123 -p 2341 -# 100 -m PROTCATJTT -s $1  -n {}; touch {};' #-n = output name #UNFINISHED
+RAXML_SBATCH = ''
+"""
