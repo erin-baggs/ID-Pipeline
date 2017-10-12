@@ -10,6 +10,8 @@ from blast import *
 from ktoolu_io import readFasta
 
 
+
+##FUNCTION : Identify all domains matching ID
 # GSMUA_Achr11P25110_001  NB-ARC(start=162, stop=447, evalue=3.4e-75)~LRR_8(start=549, stop=600, evalue=0.00014)~LRR_4(start=770, stop=802, evalue=0.12)
 #If two domains in same sequence only one Fa sequence 
 gid_nlrid = list()
@@ -43,6 +45,9 @@ with open(sys.argv[1]) as fi:
 #Need to keep list of IDs' with NLR-IDs
 #Now have list of domains - need to extract all proteins with these domains from parsed.verbose
 
+
+
+##FUNCTION: Filter ID matching  domains for e-value threshold 
 with open(sys.argv[2]) as fi2:
     for row in csv.reader(fi2, delimiter='\t'): #changed from stdin to sys.argv
         if row:
@@ -62,7 +67,7 @@ with open(sys.argv[2]) as fi2:
             if domains:
                 domain_info[row[0]] = domains
 
-
+##FUNCTION : Record only longest fasta transcript of ID matching domains
 seen_id={}
 for _id, _seq in readFasta(sys.argv[3], headless=True):            
     # print(_id)    
@@ -82,6 +87,9 @@ for _id, _seq in readFasta(sys.argv[3], headless=True):
                 seen_id[gid] = [_id, len(_seq)]
 #print (seen_id)
 #print (domain_info)
+
+
+## FUNCTION: Write out ID matching domains fasta 
 with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
     files = dict()
     for _id, _seq in readFasta(sys.argv[3], headless=True):
@@ -115,7 +123,7 @@ with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
         except: 
             pass
 
-
+## FUNCTION : BLAST NLR-ID vs ID domain fasta 
 blast_seen=set()
 filtered_qid_sid=dict()
 with open('raw.blast', 'w') as blast_out, open('filtered.blast', 'w') as blast_filtered:
@@ -137,7 +145,26 @@ with open('raw.blast', 'w') as blast_out, open('filtered.blast', 'w') as blast_f
         print(stderr)
 
 print (filtered_qid_sid)
-        
+
+"""
+##FUNCTION : Seqeuences to include in alignment
+# HELP 1. dont think I can use query need to do seperate for each domain as above 
+#  2. how would i then read input fasta for that blast and will I need to split/ join ??? 
+blast_seen=set()
+with open('to_aln.blast') as blast_aln: 
+    for HSP in runBlast('query.fa', BLAST_CMD_ALN, 'db.fa', 'blastp', nthreads=1):
+        if HSP.subject not in blast_seen_2:
+            blast_seen_2.add(HSP.subject)
+            #print(HSP.subject, sep = '\t', file = to_aln.blast)
+        if HSP.query not in blast_seen_2:
+            blast_seen_2.add(HSP.query)
+            #print(HSP.query, sep = '\t', file = to_aln.blast )
+ 
+    for _id, _seq in readFasta(, headless=True):
+        if _id      
+"""
+
+## FUNCTION : Print GFF co-ordinates of paralog to ID         
 GFF_dict= {}
 with open(sys.argv[4]) as GFF, open('chromo_cord.gff', 'w') as chromo_coord:
     for row in csv.reader(GFF, delimiter='\t'): 
@@ -151,15 +178,8 @@ with open(sys.argv[4]) as GFF, open('chromo_cord.gff', 'w') as chromo_coord:
                 for query in filtered_qid_sid[GFF_dict['ID']]:
                     print (*(row + [query]), sep = '\t' , file = chromo_coord)
 
- 
-"""
-source t_coffee-9.03.r1318
 
-QUERY=$1
-OUT=$2
-
-t_coffee ../../data/*_domain.fa -mode mcoffee -outfile ../../data/AIG_1.mcoffee.fa -output fasta_aln
-"""
+## FUNCTION : Multiple sequence alignment of each *domain.fa to nlr_id
 start_files=list()
 done_files=list()
 TCOFFEE_CMD = 'touch {}; t_coffee {} -mode mcoffee -outfile {} -output fasta_aln; touch {};'
@@ -183,12 +203,33 @@ while True:
     time.sleep(300) 
 
 
-
-
-
 """    
+## Function : Curation of alignment 
+???
+
+
+## Function : RAXML job submissions
+#RAXML job code 
+#Sort retrieve alignment files, file naming and time
 raxml_start_file = list()
 raxml_done_file = list()
 RAXML_CMD = 'touch {}; raxmlHPC-MPI-SSE3 -f a -x 1123 -p 2341 -# 100 -m PROTCATJTT -s $1  -n {}; touch {};' #-n = output name #UNFINISHED
-RAXML_SBATCH = ''
+RAXML_SBATCH = 'sbatch -p {} -c {} --mem {} --wrap "{}" -J EB_Pipe_RAXML'
+for ????
+    raxml_cmd = #raxmlHPC-MPI-SSE3 -f a -x 1123 -p 2341 -# 100 -m PROTCATJTT -s $1  -n $(basename $1)raxml
+    sbatch_cmd = RAXML_SBATCH.format('ei-long', 4, '48GB', raxml_cmd)
+    raxml_done_file.append(?+'raxml.done')
+    raxml_start_file.append(?+'raxml.start')
+    pr = subprocess.Popen(sbatch_cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = pr.communicate()
+    print(out, err, sep = '\n')
+
+start_time = time.time()
+unfinished = list(done_files)
+while True:
+    unfinished = [f for f in unfinished if not os.path.exists(f)]
+    if not unfinished or (time.time()-start_time)/60:
+        break
+
+    time.sleep(??days??)
 """
