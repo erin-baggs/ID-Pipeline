@@ -6,6 +6,7 @@ import re
 import os
 import subprocess 
 import time
+import glob
 from blast import *
 from ktoolu_io import readFasta
 
@@ -125,14 +126,19 @@ with open('query.fa', 'w') as query_out, open('db.fa', 'w') as db_out :
 
 ## FUNCTION : BLAST NLR-ID vs ID domain fasta 
 blast_seen=set()
+alignment_domains=set()
 filtered_qid_sid=dict()
 with open('raw.blast', 'w') as blast_out, open('filtered.blast', 'w') as blast_filtered:
 
     stdout, stderr = makeBlastdb('db.fa')
     if not stderr :
         print ('working')
-        for HSP in runBlast('query.fa', BLAST_CMD, 'db.fa', 'blastp', nthreads=1): #default nthreads = 8  
+        for HSP in runBlast('query.fa', BLAST_CMD_ALN, 'db.fa', 'blastp', nthreads=1): #default nthreads = 8  
             print(*HSP, sep = '\t', file = blast_out)
+            domains_2 = HSP.subject
+            domains_3 = domains_2.split('~')[1]
+            domains_4 = domains_3.split('_')[0]
+            alignment_domains.add(domains_4)
             if HSP.query not in blast_seen:
             #if float(HSP.evalue) < 1e-19:
                 blast_seen.add(HSP.query)
@@ -145,6 +151,7 @@ with open('raw.blast', 'w') as blast_out, open('filtered.blast', 'w') as blast_f
         print(stderr)
 
 print (filtered_qid_sid)
+print (alignment_domains)
 
 """
 ##FUNCTION : Seqeuences to include in alignment
@@ -178,17 +185,53 @@ with open(sys.argv[4]) as GFF, open('chromo_cord.gff', 'w') as chromo_coord:
                 for query in filtered_qid_sid[GFF_dict['ID']]:
                     print (*(row + [query]), sep = '\t' , file = chromo_coord)
 
+#NEW WITHOUT CSHU 
+##Function get FASTA from db.fa of all target domains
+#with open(db.fa) as fasta_db:
+files_2=dict()
+#print(alignment_domains)
+for _id, _seq in readFasta('db.fa', headless=True):
+    #print(_id)
+    print(alignment_domains)
+   # if _id in alignment_domains:
+    domain_long = _id.split('~')[1]
+    domain_short = domain_long.split('_')[0]
+    print(domain_short)
+    if domain_short in alignment_domains:
+        if files_2.get(domain_short, None) is None:
+            files_2[domain_short] = domain_short + 'pre-aln.fa', open(domain_short + 'pre-aln.fa', 'w') 
+        print('>'+_id + '\n' + _seq , file = files_2[domain_short][1])
+        print ('db.fa seen')
+## NEED TO ADD QUERY TO CORRECT OUT FILE 
+for _id, _seq in readFasta('query.fa', headless=True):#Can I access newly created file this way? 
+    q_domain_long = _id.split('~')[1]
+    q_domain_short = q_domain_long.split('_')[0]
+    if files_2.get(q_domain_short, None) is None:
+        pass
+    else:
+        print('>'+_id + '\n' + _seq , file = files_2[q_domain_short][1])
+        print ('query.fa seen')
+
+for k in files_2:
+    try:
+        files_2[k][1].close()
+    except:
+        pass
+
 
 ## FUNCTION : Multiple sequence alignment of each *domain.fa to nlr_id
+## NEED TO WORK ON TCOFFEE SLURM AS WRONG FORMAT !! 
 start_files=list()
 done_files=list()
 TCOFFEE_CMD = 'touch {}; t_coffee {} -mode mcoffee -outfile {} -output fasta_aln; touch {};'
 TCOFFEE_SBATCH = 'sbatch -p {} -c {} --mem {} --wrap "{}" -J EB_Pipe_Tcoffee'
-for domain_fasta in files: 
-    tcoffee_cmd = TCOFFEE_CMD.format(files[domain_fasta][0]+'tcoffee.start', files[domain_fasta][0], files[domain_fasta][0]+'.aln', files[domain_fasta][0]+'tcoffee.done')  
+list_files_2 = glob.glob("*pre-aln.fa") #glob is imported for regular expression finding. Can add path to glob if create in subdirectory sub/"." everything in here print  
+
+for f in list_files_2:   
+    tcoffee_cmd = TCOFFEE_CMD.format(f+'tcoffee.start', f, f+'.aln', f+'tcoffee.done')  
     sbatch_cmd = TCOFFEE_SBATCH.format('ei-medium', 1, '2GB', tcoffee_cmd)
-    done_files.append(files[domain_fasta][0]+'tcoffee.done')
-    start_files.append(files[domain_fasta][0]+'tcoffee.start')
+    done_files.append(f+'tcoffee.done')
+    start_files.append(f+'tcoffee.start')
     pr = subprocess.Popen(sbatch_cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) 
     out, err = pr.communicate()
     print(out, err, sep = '\n')
@@ -201,7 +244,6 @@ while True:
         break
 
     time.sleep(300) 
-
 
 """    
 ## Function : Curation of alignment 
