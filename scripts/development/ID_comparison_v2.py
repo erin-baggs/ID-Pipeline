@@ -153,23 +153,7 @@ with open('raw.blast', 'w') as blast_out, open('filtered.blast', 'w') as blast_f
 print (filtered_qid_sid)
 print (alignment_domains)
 
-"""
-##FUNCTION : Seqeuences to include in alignment
-# HELP 1. dont think I can use query need to do seperate for each domain as above 
-#  2. how would i then read input fasta for that blast and will I need to split/ join ??? 
-blast_seen=set()
-with open('to_aln.blast') as blast_aln: 
-    for HSP in runBlast('query.fa', BLAST_CMD_ALN, 'db.fa', 'blastp', nthreads=1):
-        if HSP.subject not in blast_seen_2:
-            blast_seen_2.add(HSP.subject)
-            #print(HSP.subject, sep = '\t', file = to_aln.blast)
-        if HSP.query not in blast_seen_2:
-            blast_seen_2.add(HSP.query)
-            #print(HSP.query, sep = '\t', file = to_aln.blast )
- 
-    for _id, _seq in readFasta(, headless=True):
-        if _id      
-"""
+
 
 ## FUNCTION : Print GFF co-ordinates of paralog to ID         
 GFF_dict= {}
@@ -185,11 +169,9 @@ with open(sys.argv[4]) as GFF, open('chromo_cord.gff', 'w') as chromo_coord:
                 for query in filtered_qid_sid[GFF_dict['ID']]:
                     print (*(row + [query]), sep = '\t' , file = chromo_coord)
 
-#NEW WITHOUT CSHU 
-##Function get FASTA from db.fa of all target domains
-#with open(db.fa) as fasta_db:
+#FUNCTION: Create files for alignment 
 files_2=dict()
-#print(alignment_domains)
+
 for _id, _seq in readFasta('db.fa', headless=True):
     #print(_id)
     print(alignment_domains)
@@ -202,7 +184,8 @@ for _id, _seq in readFasta('db.fa', headless=True):
             files_2[domain_short] = domain_short + 'pre-aln.fa', open(domain_short + 'pre-aln.fa', 'w') 
         print('>'+_id + '\n' + _seq , file = files_2[domain_short][1])
         print ('db.fa seen')
-## NEED TO ADD QUERY TO CORRECT OUT FILE 
+
+## Adding query to outfile with same domain 
 for _id, _seq in readFasta('query.fa', headless=True):#Can I access newly created file this way? 
     q_domain_long = _id.split('~')[1]
     q_domain_short = q_domain_long.split('_')[0]
@@ -220,7 +203,7 @@ for k in files_2:
 
 
 ## FUNCTION : Multiple sequence alignment of each *domain.fa to nlr_id
-## NEED TO WORK ON TCOFFEE SLURM AS WRONG FORMAT !! 
+
 start_files=list()
 done_files=list()
 TCOFFEE_CMD = 'touch {}; t_coffee {} -mode mcoffee -outfile {} -output fasta_aln; touch {};'
@@ -240,16 +223,58 @@ start_time = time.time()
 unfinished = list(done_files)
 while True:
     unfinished = [f for f in unfinished if not os.path.exists(f)]
-    if not unfinished or (time.time()-start_time)/60:
+    if not unfinished: #If longer 5 min run then quit 
         break
+    if (time.time()-start_time)/60>120:
+        print('Files incomplete')
+        print(unfinished)
 
     time.sleep(300) 
 
-"""    
+
 ## Function : Curation of alignment 
-???
+#####RUN FUNCTION DEFINED BELOW (MAYBE MOVE TO TOP)
 
+def aln_curation(alignment_fi):
+    seqs = dict((_id,list(_seq)) for _id,_seq in readFasta(alignment_fi))
+    #print(seqs)
 
+    alen = len(list(seqs.values())[0])
+    #print('ALEN:', alen)
+    assert all(len(seq) == alen for seq in seqs.values()), 'problem with length'
+
+    for c in xrange(alen-1, -1, -1):
+        # print(c, list(seqs.values())[0][c])
+        column = list(_seq[c] for _seq in seqs.values())
+        print(c, column)
+        if column.count('-') / len(column) > 0.6: #if > 60% gaps remove collumn 
+            print('dropped column', c)
+            for _seq in seqs.values():
+                del _seq[c]
+
+    blen = len(list(seqs.values())[0])
+
+    #print(alen, blen)
+
+    retain = dict()
+    for _id, _seq in seqs.items():    
+        if _seq.count('-') / len(_seq) > 0.8: #if over 80% gaps remove sequence 
+            #print('dropped sequence', _id)
+            continue
+        retain[_id] = _seq
+
+    seqs = retain
+    name = alignment_fi 
+    file_name = name.replace('pre-aln.fa.aln','.curated.fa')
+    with open(file_name, 'w') as out_fasta: #NEED TO ADD DOMAIN HEADER TO FILE NAMES
+        for _id, _seq in seqs.items():    
+            print(_id, ''.join(_seq), sep='\n', file=out_fasta)
+
+aln_to_curate = glob.glob("*pre-aln.fa.aln")
+for f in aln_to_curate: 
+    aln_curation(f)
+
+"""
 ## Function : RAXML job submissions
 #RAXML job code 
 #Sort retrieve alignment files, file naming and time
