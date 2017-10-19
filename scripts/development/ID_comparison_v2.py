@@ -246,9 +246,9 @@ def aln_curation(alignment_fi):
     for c in xrange(alen-1, -1, -1):
         # print(c, list(seqs.values())[0][c])
         column = list(_seq[c] for _seq in seqs.values())
-        print(c, column)
-        if column.count('-') / len(column) > 0.6: #if > 60% gaps remove collumn 
-            print('dropped column', c)
+        #print(c, column)
+        if column.count('-')/len(column) > 0.1: #if > 60% gaps remove collumn 
+            #print('dropped column', c)
             for _seq in seqs.values():
                 del _seq[c]
 
@@ -266,7 +266,7 @@ def aln_curation(alignment_fi):
     seqs = retain
     name = alignment_fi 
     file_name = name.replace('pre-aln.fa.aln','.curated.fa')
-    with open(file_name, 'w') as out_fasta: #NEED TO ADD DOMAIN HEADER TO FILE NAMES
+    with open(file_name, 'w') as out_fasta: 
         for _id, _seq in seqs.items():    
             print(_id, ''.join(_seq), sep='\n', file=out_fasta)
 
@@ -274,19 +274,19 @@ aln_to_curate = glob.glob("*pre-aln.fa.aln")
 for f in aln_to_curate: 
     aln_curation(f)
 
-"""
 ## Function : RAXML job submissions
 #RAXML job code 
-#Sort retrieve alignment files, file naming and time
+curated_aln=glob.glob("*.curated.fa")
+
 raxml_start_file = list()
 raxml_done_file = list()
-RAXML_CMD = 'touch {}; raxmlHPC-MPI-SSE3 -f a -x 1123 -p 2341 -# 100 -m PROTCATJTT -s $1  -n {}; touch {};' #-n = output name #UNFINISHED
+RAXML_CMD = 'touch {}; raxmlHPC-MPI-SSE3 -f a -x 1123 -p 2341 -# 100 -m PROTCATJTT -s {}  -n ID-RAXML; touch {};' #-n = output name #UNFINISHED
 RAXML_SBATCH = 'sbatch -p {} -c {} --mem {} --wrap "{}" -J EB_Pipe_RAXML'
-for ????
-    raxml_cmd = #raxmlHPC-MPI-SSE3 -f a -x 1123 -p 2341 -# 100 -m PROTCATJTT -s $1  -n $(basename $1)raxml
+for f in curated_aln:
+    raxml_cmd = RAXML_CMD.format(f+'raxml.start', f, f+'raxml.done' )
     sbatch_cmd = RAXML_SBATCH.format('ei-long', 4, '48GB', raxml_cmd)
-    raxml_done_file.append(?+'raxml.done')
-    raxml_start_file.append(?+'raxml.start')
+    raxml_done_file.append(f+'raxml.done')
+    raxml_start_file.append(f+'raxml.start')
     pr = subprocess.Popen(sbatch_cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = pr.communicate()
     print(out, err, sep = '\n')
@@ -295,8 +295,7 @@ start_time = time.time()
 unfinished = list(done_files)
 while True:
     unfinished = [f for f in unfinished if not os.path.exists(f)]
-    if not unfinished or (time.time()-start_time)/60:
+    if not unfinished or (time.time()-start_time)/60 > 120:
         break
 
-    time.sleep(??days??)
-"""
+    time.sleep(300)
